@@ -55,8 +55,15 @@ class LLMClient:
             "model": self.model,
             "messages": messages,
             "temperature": temperature,
-            "max_tokens": max_tokens,
         }
+        if self.model.startswith(("gpt-5", "gpt-6")):
+            kwargs["max_completion_tokens"] = max_tokens
+        else:
+            kwargs["max_tokens"] = max_tokens
+
+        if self.model.startswith("gpt-6"):
+            kwargs.pop("temperature")
+            kwargs["reasoning_effort"] = Config.LLM_REASONING_EFFORT
         
         if response_format:
             kwargs["response_format"] = response_format

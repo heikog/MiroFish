@@ -1,14 +1,49 @@
 services:
   mirofish:
-    image: ghcr.io/666ghj/mirofish:latest
-    # 加速镜像（如拉取缓慢可替换上方地址）
-    # image: ghcr.nju.edu.cn/666ghj/mirofish:latest
+    build:
+      context: .
+    image: mirofish-local:latest
     container_name: mirofish
     env_file:
       - .env
     ports:
-      - "3000:3000"
-      - "5001:5001"
-    restart: unless-stopped
+      - "192.168.0.213:3000:3000"
+      - "192.168.0.213:5001:5001"
+      - "100.75.239.107:3000:3000"
+      - "100.75.239.107:5001:5001"
+    restart: "no"
     volumes:
       - ./backend/uploads:/app/backend/uploads
+  graphiti-falkordb:
+    image: falkordb/falkordb:latest
+    container_name: graphiti-falkordb
+    profiles:
+      - graphiti
+    volumes:
+      - graphiti_falkordb_data:/data
+    restart: "no"
+
+  graphiti-bridge:
+    build:
+      context: .
+      dockerfile: graphiti_bridge/Dockerfile
+    image: mirofish-graphiti-bridge:latest
+    container_name: graphiti-bridge
+    profiles:
+      - graphiti
+    environment:
+      OPENAI_API_KEY: ${LLM_API_KEY}
+      OPENAI_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
+      MODEL_NAME: ${GRAPHITI_MODEL_NAME:-${LLM_MODEL_NAME:-gpt-6-luna}}
+      EMBEDDING_MODEL_NAME: ${GRAPHITI_EMBEDDING_MODEL_NAME:-text-embedding-3-small}
+      REASONING_EFFORT: ${LLM_REASONING_EFFORT:-high}
+      FALKORDB_HOST: graphiti-falkordb
+      FALKORDB_PORT: 6379
+    depends_on:
+      - graphiti-falkordb
+    ports:
+      - "127.0.0.1:8008:8008"
+    restart: "no"
+
+volumes:
+  graphiti_falkordb_data:

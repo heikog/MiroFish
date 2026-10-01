@@ -21,7 +21,9 @@ dependencies = [
     
     # OASIS 社交媒体模拟
     "camel-oasis==0.2.5",
-    "camel-ai==0.2.78",
+    "camel-ai==0.2.90",
+    # OASIS uses PyTorch for its recommendation simulation; pin the CPU-only source below.
+    "torch",
     
     # 文件处理
     "PyMuPDF>=1.24.0",
@@ -53,3 +55,12 @@ dev = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+camel-oasis = { git = "https://github.com/camel-ai/oasis.git", rev = "affe52e8dcbc70bba0a4162bfea1057aa5df9316" }
+torch = { index = "pytorch-cpu" }

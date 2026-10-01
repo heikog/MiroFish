@@ -1031,9 +1031,20 @@ def create_model(config: Dict[str, Any], use_boost: bool = False):
     
     print(f"{config_label} model={llm_model}, base_url={llm_base_url[:40] if llm_base_url else '默认'}...")
     
+    model_config_dict = None
+    if llm_model.startswith("gpt-6"):
+        model_config_dict = {
+            "reasoning": {
+                "effort": os.environ.get("LLM_REASONING_EFFORT", "high")
+            }
+        }
+
+    factory_kwargs = {"api_mode": "responses"} if llm_model.startswith("gpt-6") else {}
     return ModelFactory.create(
         model_platform=ModelPlatformType.OPENAI,
         model_type=llm_model,
+        model_config_dict=model_config_dict,
+        **factory_kwargs,
     )
 
 
