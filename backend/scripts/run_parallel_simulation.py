@@ -1036,7 +1036,9 @@ def create_model(config: Dict[str, Any], use_boost: bool = False):
         model_config_dict = {
             "reasoning": {
                 "effort": os.environ.get("LLM_REASONING_EFFORT", "high")
-            }
+            },
+            # OASIS manages tool results locally; avoid server-side response chaining.
+            "store": False,
         }
 
     factory_kwargs = {"api_mode": "responses"} if llm_model.startswith("gpt-6") else {}
