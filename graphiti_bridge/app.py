@@ -21,8 +21,36 @@ FALKORDB_HOST = os.environ.get("FALKORDB_HOST", "graphiti-falkordb")
 FALKORDB_PORT = int(os.environ.get("FALKORDB_PORT", "6379"))
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY") or os.environ.get("LLM_API_KEY")
 OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL") or os.environ.get("LLM_BASE_URL", "https://api.openai.com/v1")
-MODEL_NAME = os.environ.get("MODEL_NAME") or os.environ.get("GRAPHITI_MODEL_NAME", "gpt-5.4-mini")
+MODEL_NAME = os.environ.get("MODEL_NAME") or os.environ.get("GRAPHITI_MODEL_NAME", "gpt-6-luna")
+REASONING_EFFORT = os.environ.get("REASONING_EFFORT", "high")
 EMBEDDING_MODEL_NAME = os.environ.get("EMBEDDING_MODEL_NAME") or os.environ.get("GRAPHITI_EMBEDDING_MODEL_NAME", "text-embedding-3-small")
+
+
+class ConfiguredOpenAIClient(OpenAIClient):
+    """Pass the configured reasoning effort through GPT-6 completion calls."""
+
+    async def _create_completion(self, model, messages, temperature, max_tokens, response_model=None, reasoning=None, verbosity=None):
+        if not model.startswith("gpt-6"):
+            return await super()._create_completion(model, messages, temperature, max_tokens, response_model, reasoning, verbosity)
+        return await self.client.chat.completions.create(
+            model=model,
+            messages=messages,
+            max_completion_tokens=max_tokens,
+            response_format={"type": "json_object"},
+            reasoning_effort=reasoning or REASONING_EFFORT,
+        )
+
+    async def _create_structured_completion(self, model, messages, temperature, max_tokens, response_model, reasoning=None, verbosity=None):
+        if not model.startswith("gpt-6"):
+            return await super()._create_structured_completion(model, messages, temperature, max_tokens, response_model, reasoning, verbosity)
+        return await self.client.responses.parse(
+            model=model,
+            input=messages,
+            max_output_tokens=max_tokens,
+            text_format=response_model,
+            reasoning={"effort": reasoning or REASONING_EFFORT},
+        )
+
 
 ONTOLOGIES: dict[str, dict[str, Any]] = {}
 INDICES_INITIALIZED: set[str] = set()
@@ -82,7 +110,9 @@ async def graphiti(graph_id: str) -> Graphiti:
     os.environ.setdefault("MODEL_NAME", MODEL_NAME)
     os.environ.setdefault("EMBEDDING_MODEL_NAME", EMBEDDING_MODEL_NAME)
     driver = FalkorDriver(host=FALKORDB_HOST, port=FALKORDB_PORT, database=graph_id)
-    return Graphiti(graph_driver=driver)
+    llm_config = LLMConfig(api_key=OPENAI_API_KEY, model=MODEL_NAME, base_url=OPENAI_BASE_URL)
+    llm_client = ConfiguredOpenAIClient(config=llm_config, reasoning=REASONING_EFFORT)
+    return Graphiti(graph_driver=driver, llm_client=llm_client)
 
 
 async def ensure_indices(graph_id: str) -> None:
